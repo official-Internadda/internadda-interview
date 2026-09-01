@@ -3,16 +3,18 @@
 @layer base {
   :root, html.light {
     --bg-main: #f8fafc;
-    --bg-card: rgba(255, 255, 255, 0.85);
-    --border-color: rgba(226, 232, 240, 0.9);
+    --bg-navy: #0b192c;
+    --bg-card: #ffffff;
+    --border-color: #e2e8f0;
     --text-main: #0f172a;
     --text-muted: #64748b;
   }
 
   html.dark {
     --bg-main: #020617;
-    --bg-card: rgba(15, 23, 42, 0.75);
-    --border-color: rgba(30, 41, 59, 0.8);
+    --bg-navy: #090d16;
+    --bg-card: rgba(15, 23, 42, 0.9);
+    --border-color: rgba(30, 41, 59, 0.9);
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
   }
@@ -20,53 +22,60 @@
   body {
     background-color: var(--bg-main);
     color: var(--text-main);
-    font-feature-settings: "rlig" 1, "calt" 1;
-    @apply antialiased min-h-screen transition-colors duration-300 selection:bg-blue-500/20 selection:text-blue-700;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply antialiased min-h-screen transition-colors duration-300 selection:bg-blue-600/20 selection:text-blue-800;
   }
 }
 
-/* Super Premium Metallic Silver Glassmorphism Cards */
-.silver-card {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 245, 249, 0.85) 100%);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: 0 20px 40px -15px rgba(148, 163, 184, 0.25), 0 0 1px 1px rgba(255, 255, 255, 0.8) inset;
-  backdrop-filter: blur(16px);
+/* Eightfold AI Enterprise Card Aesthetics */
+.eightfold-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px -10px rgba(15, 23, 42, 0.08), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border-radius: 1.25rem;
 }
 
-.dark .silver-card {
-  background: linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(2, 6, 23, 0.95) 100%);
-  border: 1px solid rgba(30, 41, 59, 0.9);
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(16px);
+.dark .eightfold-card {
+  background: linear-gradient(145deg, #0f172a 0%, #020617 100%);
+  border: 1px solid #1e293b;
+  box-shadow: 0 15px 35px -10px rgba(0, 0, 0, 0.5);
+  border-radius: 1.25rem;
 }
 
-/* Perplexity Voice Mode Orb & Wave Visualizer Animations */
-@keyframes orbPulse {
-  0% {
-    transform: scale(0.96);
-    box-shadow: 0 0 25px rgba(59, 130, 246, 0.4), 0 0 50px rgba(99, 102, 241, 0.2);
-  }
-  50% {
-    transform: scale(1.08);
-    box-shadow: 0 0 45px rgba(59, 130, 246, 0.7), 0 0 90px rgba(99, 102, 241, 0.4);
-  }
-  100% {
-    transform: scale(0.96);
-    box-shadow: 0 0 25px rgba(59, 130, 246, 0.4), 0 0 50px rgba(99, 102, 241, 0.2);
-  }
+.eightfold-hero-navy {
+  background: linear-gradient(135deg, #0b192c 0%, #1e3a8a 50%, #0f172a 100%);
+  color: #ffffff;
 }
 
-@keyframes waveEqualizer {
-  0%, 100% { height: 8px; }
-  50% { height: 32px; }
+/* Live Recording Dot Pulse Animation */
+@keyframes recPulse {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.3; transform: scale(1.15); }
+  100% { opacity: 1; transform: scale(1); }
 }
 
-.animate-orb-pulse {
-  animation: orbPulse 3.5s ease-in-out infinite;
+.animate-rec-dot {
+  animation: recPulse 1.5s ease-in-out infinite;
 }
 
-.animate-equalizer-bar {
-  animation: waveEqualizer 1.2s ease-in-out infinite;
+/* AI Voice Wave Equalizer Animation */
+@keyframes voiceEqualizer {
+  0%, 100% { height: 6px; }
+  50% { height: 36px; }
+}
+
+.animate-voice-bar {
+  animation: voiceEqualizer 1.1s ease-in-out infinite;
+}
+
+@keyframes orbGlow {
+  0% { transform: scale(0.97); box-shadow: 0 0 20px rgba(37, 99, 235, 0.3); }
+  50% { transform: scale(1.06); box-shadow: 0 0 45px rgba(37, 99, 235, 0.6); }
+  100% { transform: scale(0.97); box-shadow: 0 0 20px rgba(37, 99, 235, 0.3); }
+}
+
+.animate-orb-glow {
+  animation: orbGlow 3s ease-in-out infinite;
 }
 
 /* Print optimizations for Report export */
@@ -79,7 +88,7 @@
     display: none !important;
   }
   .print-card {
-    border: 1px solid #e2e8f0 !important;
+    border: 1px solid #cbd5e1 !important;
     background-color: white !important;
     color: black !important;
     box-shadow: none !important;
