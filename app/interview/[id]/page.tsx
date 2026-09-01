@@ -5,22 +5,26 @@ import { useParams, useRouter } from 'next/navigation';
 import { Navbar } from '@/components/navbar';
 import { Footer } from '@/components/footer';
 import { PreCheck } from '@/components/interview/pre-check';
+import { CandidateInstructions } from '@/components/interview/instructions';
 import { LiveInterview } from '@/components/interview/live-interview';
-import { Interview, CandidateAttempt, FraudFlag } from '@/lib/types';
-import { ShieldAlert, AlertCircle } from 'lucide-react';
+import { Interview, CandidateAttempt } from '@/lib/types';
+import { AlertCircle, XCircle } from 'lucide-react';
 
-export default function StudentInterviewPage() {
+export default function CandidateInterviewPage() {
   const params = useParams();
   const router = useRouter();
   const interviewId = params.id as string;
 
   const [interview, setInterview] = useState<Interview | null>(null);
   const [attempt, setAttempt] = useState<CandidateAttempt | null>(null);
+
+  // Flow Step: 'pre-check' | 'instructions' | 'live' | 'finished'
+  const [step, setStep] = useState<'pre-check' | 'instructions' | 'live' | 'finished'>('pre-check');
+  const [candidateInfo, setCandidateInfo] = useState<{ name: string; email: string } | null>(null);
+
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
-  const [step, setStep] = useState<'precheck' | 'live' | 'disqualified'>('precheck');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [disqualificationReason, setDisqualificationReason] = useState('');
 
   useEffect(() => {
     async function loadInterview() {
@@ -28,7 +32,10 @@ export default function StudentInterviewPage() {
         setLoading(true);
         const res = await fetch(`/api/interview/${interviewId}`);
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Interview not found');
+
+        if (!res.ok || !data.interview) {
+          throw new Error('Interview setup not found');
+        }
         setInterview(data.interview);
       } catch (err: any) {
         setError(err.message || 'Failed to load interview');
@@ -36,52 +43,57 @@ export default function StudentInterviewPage() {
         setLoading(false);
       }
     }
+
     if (interviewId) loadInterview();
   }, [interviewId]);
 
-  const handleStartInterview = async (candidateInfo: { name: string; email: string; stream: MediaStream }) => {
+  const handlePreCheckComplete = async (info: { name: string; email: string; stream: MediaStream }) => {
+    setCandidateInfo({ name: info.name, email: info.email });
+    setMediaStream(info.stream);
+
     try {
-      setLoading(true);
+      // Start Candidate Attempt session
       const res = await fetch('/api/interview/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           interview_id: interviewId,
-          candidate_name: candidateInfo.name,
-          candidate_email: candidateInfo.email
+          candidate_name: info.name,
+          candidate_email: info.email
         })
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to register candidate session');
+      if (!res.ok) throw new Error(data.error || 'Failed to start interview session');
 
       setAttempt(data.attempt);
-      setMediaStream(candidateInfo.stream);
-      setStep('live');
+      // Move to Candidate Instructions Briefing Screen
+      setStep('instructions');
     } catch (err: any) {
-      setError(err.message || 'Failed to initialize session');
-    } finally {
-      setLoading(false);
+      alert(err.message || 'Error starting session');
     }
   };
 
-  const handleFinishInterview = (disqualified = false, flags: FraudFlag[] = []) => {
-    if (disqualified) {
-      setDisqualificationReason('Disqualified — Integrity Violation during interview.');
-      setStep('disqualified');
-    } else if (attempt) {
+  const handleInstructionsProceed = () => {
+    // Proceed to Live AI Voice Session
+    setStep('live');
+  };
+
+  const handleFinish = (disqualified = false, flags: any[] = []) => {
+    setStep('finished');
+    if (attempt) {
       router.push(`/interview/${interviewId}/report/${attempt.id}`);
     }
   };
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
+      <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
         <Navbar />
         <main className="flex flex-1 items-center justify-center">
-          <div className="flex flex-col items-center gap-3 text-slate-400">
-            <div className="h-8 w-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin"></div>
-            <p className="text-xs">Loading InternAdda AI Session...</p>
+          <div className="flex flex-col items-center gap-3 text-slate-500">
+            <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
+            <p className="text-xs">Preparing Eightfold AI Session...</p>
           </div>
         </main>
         <Footer />
@@ -91,13 +103,13 @@ export default function StudentInterviewPage() {
 
   if (error || !interview) {
     return (
-      <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
+      <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
         <Navbar />
         <main className="flex flex-1 items-center justify-center px-4 py-12">
-          <div className="max-w-md w-full rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-center space-y-4">
-            <AlertCircle className="h-10 w-10 text-rose-400 mx-auto" />
-            <h2 className="text-lg font-bold text-white">Interview Session Error</h2>
-            <p className="text-xs text-rose-300">{error || 'This interview link is invalid or has been archived.'}</p>
+          <div className="max-w-md w-full rounded-3xl border border-rose-500/20 bg-rose-500/10 p-6 text-center space-y-4">
+            <XCircle className="h-10 w-10 text-rose-500 mx-auto" />
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Interview Link Error</h2>
+            <p className="text-xs text-rose-700 dark:text-rose-300">{error || 'Interview session is unavailable.'}</p>
           </div>
         </main>
         <Footer />
@@ -106,18 +118,30 @@ export default function StudentInterviewPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 text-slate-100">
+    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
       <Navbar />
 
       <main className="flex-1">
-        {step === 'precheck' && (
+        {step === 'pre-check' && (
           <PreCheck
             interviewTitle={interview.title}
             category={interview.category}
             difficulty={interview.difficulty}
             durationMinutes={interview.duration_minutes}
             numQuestions={interview.num_questions}
-            onStart={handleStartInterview}
+            onStart={handlePreCheckComplete}
+          />
+        )}
+
+        {step === 'instructions' && candidateInfo && (
+          <CandidateInstructions
+            candidateName={candidateInfo.name}
+            interviewTitle={interview.title}
+            category={interview.category}
+            difficulty={interview.difficulty}
+            numQuestions={interview.num_questions}
+            durationMinutes={interview.duration_minutes}
+            onProceed={handleInstructionsProceed}
           />
         )}
 
@@ -126,34 +150,15 @@ export default function StudentInterviewPage() {
             interview={interview}
             attempt={attempt}
             mediaStream={mediaStream}
-            onFinish={handleFinishInterview}
+            onFinish={handleFinish}
           />
         )}
 
-        {step === 'disqualified' && (
-          <div className="mx-auto max-w-xl px-4 py-16 text-center space-y-6">
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400">
-              <ShieldAlert className="h-8 w-8" />
-            </div>
-            <div className="space-y-2">
-              <h1 className="text-2xl font-bold text-white">Interview Terminated</h1>
-              <p className="text-sm font-semibold text-rose-400 uppercase tracking-wider">
-                Disqualified — Integrity Violation
-              </p>
-              <p className="text-xs text-slate-400 max-w-md mx-auto">
-                {disqualificationReason ||
-                  'The interview was automatically cancelled because one or more proctoring integrity rules were violated.'}
-              </p>
-            </div>
-            <div className="pt-4">
-              {attempt && (
-                <a
-                  href={`/interview/${interviewId}/report/${attempt.id}`}
-                  className="inline-flex items-center gap-2 rounded-xl bg-slate-800 border border-slate-700 px-5 py-2.5 text-xs font-semibold text-white hover:bg-slate-700"
-                >
-                  View Integrity Audit Report
-                </a>
-              )}
+        {step === 'finished' && (
+          <div className="flex min-h-[60vh] items-center justify-center">
+            <div className="text-center space-y-3">
+              <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mx-auto"></div>
+              <p className="text-xs text-slate-500">Redirecting to candidate report...</p>
             </div>
           </div>
         )}
