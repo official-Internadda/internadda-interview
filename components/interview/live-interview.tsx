@@ -7,13 +7,13 @@ import {
   Volume2,
   VolumeX,
   RotateCcw,
-  Send,
   Clock,
   Sparkles,
   ShieldCheck,
   ChevronRight,
   Radio,
-  CheckCircle2
+  Video,
+  AlertTriangle
 } from 'lucide-react';
 import { Interview, CandidateAttempt, FraudFlag } from '@/lib/types';
 import { ProctoringMonitor } from './proctoring-monitor';
@@ -47,7 +47,7 @@ export function LiveInterview({
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // Attach webcam stream to preview box
+  // Attach media stream to video preview box
   useEffect(() => {
     if (videoRef.current && mediaStream) {
       videoRef.current.srcObject = mediaStream;
@@ -59,7 +59,7 @@ export function LiveInterview({
     fetchNextQuestion(1, []);
   }, []);
 
-  // Question Timer Countdown
+  // Timer countdown
   useEffect(() => {
     if (loadingQuestion || submittingAnswer) return;
 
@@ -109,11 +109,11 @@ export function LiveInterview({
     }
   }, []);
 
-  // Text-To-Speech (TTS) Voice Synthesis for InternAdda AI
+  // Text-To-Speech (TTS) Voice Synthesis
   const speakQuestion = (text: string) => {
     if (typeof window === 'undefined' || isAudioMuted) return;
     if ('speechSynthesis' in window) {
-      window.speechSynthesis.cancel(); // Stop ongoing speech
+      window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.0;
@@ -129,7 +129,7 @@ export function LiveInterview({
 
   const toggleRecording = () => {
     if (!recognitionRef.current) {
-      alert('Web Speech API is not supported in this browser. Please type your response using the fallback editor.');
+      alert('Web Speech API is not supported in this browser. Please type your response using the text area.');
       return;
     }
 
@@ -168,11 +168,10 @@ export function LiveInterview({
       });
 
       const data = await res.json();
-      const textToUse = data.question_text || `Please describe a key project or experience in ${interview.category}.`;
+      const textToUse = data.question_text || `Please describe a key project or scenario in ${interview.category}.`;
       setQuestionText(textToUse);
       setContextHint(data.context_hint || '');
 
-      // Trigger AI Speech Output
       speakQuestion(textToUse);
     } catch (err) {
       console.error('Failed to fetch question:', err);
@@ -267,7 +266,7 @@ export function LiveInterview({
   const timerFormatted = `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
 
   return (
-    <div className="relative mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
+    <div className="relative mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 space-y-6">
       {/* Active Proctoring Engine */}
       <ProctoringMonitor
         mediaStream={mediaStream}
@@ -275,15 +274,15 @@ export function LiveInterview({
         onFraudWarning={(flag) => setFraudFlags((prev) => [...prev, flag])}
       />
 
-      {/* Top Header Control Bar */}
-      <div className="silver-card rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Eightfold Top Status Control Bar */}
+      <div className="eightfold-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 via-indigo-600 to-slate-800 text-white shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white font-bold shadow-md">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
             <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider block">
-              InternAdda AI Voice Mode
+              Eightfold AI Interviewer Engine
             </span>
             <span className="text-[11px] text-slate-500 dark:text-slate-400">
               Candidate: <strong className="text-slate-900 dark:text-slate-200 font-semibold">{attempt.candidate_name}</strong> ({interview.category})
@@ -292,7 +291,6 @@ export function LiveInterview({
         </div>
 
         <div className="flex items-center gap-3">
-          {/* Mute Audio Output Toggle */}
           <button
             onClick={() => {
               setIsAudioMuted(!isAudioMuted);
@@ -301,8 +299,7 @@ export function LiveInterview({
                 setIsAiSpeaking(false);
               }
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-white/80 dark:bg-slate-900 px-3 py-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
-            title={isAudioMuted ? 'Unmute AI Voice Output' : 'Mute AI Voice Output'}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
           >
             {isAudioMuted ? (
               <>
@@ -312,12 +309,11 @@ export function LiveInterview({
             ) : (
               <>
                 <Volume2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                <span>Audio On</span>
+                <span>Audio Output On</span>
               </>
             )}
           </button>
 
-          {/* Timer */}
           <div className="flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-1.5 text-xs text-slate-700 dark:text-slate-300">
             <Clock className={`h-4 w-4 ${timerSeconds < 30 ? 'text-rose-500 animate-pulse' : 'text-blue-600 dark:text-blue-400'}`} />
             <strong className={`font-mono text-sm ${timerSeconds < 30 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>
@@ -325,48 +321,47 @@ export function LiveInterview({
             </strong>
           </div>
 
-          <div className="rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 px-3 py-1.5 text-xs font-semibold text-slate-800 dark:text-slate-200">
-            Q <span className="text-blue-600 dark:text-blue-400">{currentQuestionIndex}</span> / {interview.num_questions}
+          <div className="rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
+            Question <span className="text-blue-600 dark:text-blue-400">{currentQuestionIndex}</span> / {interview.num_questions}
           </div>
         </div>
       </div>
 
-      {/* Perplexity Voice Mode Main Interface */}
+      {/* Eightfold Split Screen Layout (Desktop: Side-by-Side | Mobile: Stacked) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left: Perplexity-Style Voice Orb & Question Box */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="silver-card rounded-3xl p-8 text-center space-y-6 relative overflow-hidden shadow-2xl">
-            {/* Live Voice Mode Status Badge */}
+        {/* Left Side: AI Interviewer Voice Box */}
+        <div className="lg:col-span-7 space-y-6">
+          <div className="eightfold-card p-6 sm:p-8 space-y-6 text-center shadow-xl relative overflow-hidden">
+            {/* Live State Badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
               <Radio className="h-4 w-4 animate-pulse text-blue-500" />
               {submittingAnswer
-                ? 'EVALUATING CANDIDATE RESPONSE...'
+                ? 'EVALUATING RESPONSE...'
                 : isAiSpeaking
-                ? 'INTERNADDA AI SPEAKING...'
+                ? 'AI DIGITAL RECRUITER SPEAKING...'
                 : isRecording
                 ? 'LISTENING TO CANDIDATE...'
-                : 'READY FOR CANDIDATE ANSWER'}
+                : 'READY FOR ANSWER'}
             </div>
 
-            {/* Glowing Perplexity Voice Orb */}
+            {/* Glowing AI Voice Orb & Waveform */}
             <div className="relative my-6 flex items-center justify-center">
               <div
-                className={`h-32 w-32 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-500 to-emerald-400 flex items-center justify-center shadow-2xl transition-all duration-500 ${
-                  isAiSpeaking || isRecording ? 'animate-orb-pulse scale-105' : 'opacity-90'
+                className={`h-28 w-28 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-400 flex items-center justify-center shadow-xl transition-all duration-300 ${
+                  isAiSpeaking || isRecording ? 'animate-orb-glow scale-105' : 'opacity-90'
                 }`}
               >
-                <div className="h-24 w-24 rounded-full bg-white dark:bg-slate-950 flex items-center justify-center backdrop-blur-md">
-                  <Sparkles className={`h-10 w-10 ${isAiSpeaking ? 'text-blue-600 animate-spin' : isRecording ? 'text-rose-500 animate-pulse' : 'text-indigo-500'}`} />
+                <div className="h-20 w-20 rounded-full bg-white dark:bg-slate-950 flex items-center justify-center">
+                  <Sparkles className={`h-8 w-8 ${isAiSpeaking ? 'text-blue-600 animate-spin' : isRecording ? 'text-rose-500 animate-pulse' : 'text-indigo-500'}`} />
                 </div>
               </div>
 
-              {/* Animated Equalizer Waveform */}
               {(isAiSpeaking || isRecording) && (
-                <div className="absolute -bottom-4 flex items-center gap-1">
+                <div className="absolute -bottom-3 flex items-center gap-1">
                   {[1, 2, 3, 4, 5, 6, 7].map((bar) => (
                     <div
                       key={bar}
-                      className="w-1.5 rounded-full bg-gradient-to-t from-blue-500 to-indigo-500 animate-equalizer-bar"
+                      className="w-1.5 rounded-full bg-blue-600 animate-voice-bar"
                       style={{ animationDelay: `${bar * 0.15}s` }}
                     />
                   ))}
@@ -374,14 +369,14 @@ export function LiveInterview({
               )}
             </div>
 
-            {/* Question Text */}
+            {/* Question Display */}
             {loadingQuestion ? (
-              <div className="py-6 text-slate-500 dark:text-slate-400 text-sm animate-pulse">
+              <div className="py-6 text-slate-400 text-sm animate-pulse">
                 Composing next question for {interview.category}...
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white leading-relaxed max-w-2xl mx-auto">
+                <p className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white leading-relaxed">
                   "{questionText}"
                 </p>
 
@@ -391,10 +386,10 @@ export function LiveInterview({
                   </p>
                 )}
 
-                <div className="flex items-center justify-center gap-3 pt-2">
+                <div className="pt-2">
                   <button
                     onClick={() => speakQuestion(questionText)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-white/80 dark:bg-slate-900 px-3.5 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                   >
                     <RotateCcw className="h-3.5 w-3.5 text-blue-500" />
                     Replay Voice Question
@@ -404,8 +399,8 @@ export function LiveInterview({
             )}
           </div>
 
-          {/* Voice Input & Speech Transcript Card */}
-          <div className="silver-card rounded-3xl p-6 space-y-4 shadow-xl">
+          {/* Speech Transcript & Response Editor */}
+          <div className="eightfold-card p-6 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <label className="text-xs font-bold text-slate-900 dark:text-slate-200 uppercase tracking-wider">
                 Candidate Speech Transcript
@@ -416,8 +411,8 @@ export function LiveInterview({
                 onClick={toggleRecording}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
                   isRecording
-                    ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/30 animate-pulse'
-                    : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/20 hover:brightness-110'
+                    ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30 animate-pulse'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20'
                 }`}
               >
                 {isRecording ? (
@@ -432,31 +427,29 @@ export function LiveInterview({
               </button>
             </div>
 
-            {/* Answer Text Area */}
             <div className="relative">
               <textarea
                 rows={4}
                 value={answerText}
                 onChange={(e) => setAnswerText(e.target.value)}
-                placeholder="Click 'Click to Speak Response' to answer via microphone, or type your response directly..."
-                className="w-full rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-950 p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-500 focus:outline-none transition-colors"
+                placeholder="Click 'Click to Speak Response' to record your speech, or type your answer directly..."
+                className="w-full rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 focus:outline-none transition-colors"
               />
               <div className="absolute bottom-3 right-3 text-[11px] text-slate-400">
                 {answerText.trim().split(/\s+/).filter(Boolean).length} words
               </div>
             </div>
 
-            {/* Submit Action */}
             <div className="flex items-center justify-between pt-2">
-              <span className="text-[11px] text-slate-500 dark:text-slate-400">
-                Speech evaluation uses executive domain rubrics.
+              <span className="text-[11px] text-slate-500">
+                Evaluation follows Eightfold domain rubrics.
               </span>
 
               <button
                 type="button"
                 disabled={submittingAnswer || loadingQuestion}
                 onClick={() => submitAnswerCurrent(false)}
-                className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-500/25 hover:brightness-110 active:scale-95 disabled:opacity-40 transition-all"
+                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-600/25 active:scale-95 disabled:opacity-40 transition-all"
               >
                 {submittingAnswer ? (
                   <span className="flex items-center gap-2">
@@ -474,21 +467,23 @@ export function LiveInterview({
           </div>
         </div>
 
-        {/* Right: Live Proctoring Video Feed */}
-        <div className="lg:col-span-4 space-y-4">
-          <div className="silver-card rounded-3xl p-5 space-y-4 shadow-xl">
-            <div className="flex items-center justify-between text-xs">
-              <span className="font-bold text-slate-900 dark:text-slate-200 uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                Live Proctoring Feed
-              </span>
-              <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-2.5 py-0.5 text-[10px] font-semibold flex items-center gap-1">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                Active
-              </span>
+        {/* Right Side: Candidate Video Recording Container */}
+        <div className="lg:col-span-5 space-y-4">
+          <div className="eightfold-card p-5 space-y-4 shadow-xl">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                <Video className="h-4 w-4 text-blue-600" />
+                Candidate Recording Feed
+              </div>
+
+              {/* Red REC dot indicator */}
+              <div className="flex items-center gap-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 px-3 py-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+                <span className="h-2 w-2 rounded-full bg-rose-600 animate-rec-dot"></span>
+                <span>REC</span>
+              </div>
             </div>
 
-            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-950">
+            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-950 shadow-inner">
               <video
                 ref={videoRef}
                 autoPlay
@@ -498,13 +493,13 @@ export function LiveInterview({
               />
             </div>
 
-            <div className="space-y-1.5 text-[11px] text-slate-600 dark:text-slate-400 bg-white/60 dark:bg-slate-950/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
               <div className="flex justify-between">
-                <span>Tab Focus:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Verified</span>
+                <span>Tab Focus Monitor:</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Active & Compliance Verified</span>
               </div>
               <div className="flex justify-between">
-                <span>Integrity Flags:</span>
+                <span>Proctoring Flags:</span>
                 <span className={fraudFlags.length > 0 ? 'text-rose-600 font-bold' : 'text-slate-700 dark:text-slate-300'}>
                   {fraudFlags.length} recorded
                 </span>
