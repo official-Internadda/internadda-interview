@@ -6,80 +6,83 @@ import {
   Sparkles,
   ShieldCheck,
   Zap,
-  Award,
   ArrowRight,
   Mic,
   Lock,
-  Globe,
   Clock,
-  TrendingUp,
   CheckCircle2,
-  Users
+  Users,
+  Award,
+  Video,
+  FileCheck,
+  Building2,
+  ChevronRight,
+  HelpCircle
 } from 'lucide-react';
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900 selection:bg-blue-600/20 selection:text-blue-900">
       <Navbar />
 
-      {/* Eightfold AI Hero Section */}
-      <section className="relative overflow-hidden eightfold-hero-navy py-20 lg:py-28">
+      {/* Hero Section */}
+      <section className="relative bg-white border-b border-slate-200 py-16 lg:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             {/* Hero Left Content */}
             <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-              <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold text-blue-300 backdrop-blur-md">
-                <Sparkles className="h-3.5 w-3.5 text-blue-400" />
-                InternAdda AI Digital Recruiter • White-labeled for Upforge.org
+              <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50/80 px-3.5 py-1 text-xs font-semibold text-blue-700">
+                <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+                AI Interviewer • Europe's Privacy-First Talent Intelligence Platform
               </div>
 
-              <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight">
-                Meet <span className="text-blue-400">AI Interviewer</span>.<br />
-                Your 24/7 Digital Recruiter.
+              <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1]">
+                Autonomous AI Interviews.<br />
+                <span className="text-blue-600">Uncompromising Rigor & Privacy.</span>
               </h1>
 
-              <p className="text-base sm:text-lg text-slate-300 leading-relaxed max-w-2xl">
-                Conduct bias-conscious, domain-specific AI interviews at scale. Real-time speech evaluation, automated proctoring, and instant candidate qualification rubrics.
+              <p className="text-base sm:text-lg text-slate-600 leading-relaxed max-w-2xl">
+                Evaluate candidate competence 24/7 with adaptive voice probing, active in-browser proctoring, and standardized STAR methodology rubrics. Live camera and mic feeds are processed in real-time — zero raw video or audio is ever recorded or saved.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-2">
                 <Link
                   href="/interview/demo-interview-1"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-500 px-8 py-4 text-sm font-semibold text-white shadow-xl shadow-blue-600/30 active:scale-95 transition-all"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/20 active:scale-[0.98] transition-all"
                 >
                   <Mic className="h-4 w-4" />
                   Try AI Interviewer Now
                   <ArrowRight className="h-4 w-4" />
                 </Link>
                 <Link
-                  href="/admin"
-                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-700 bg-slate-900/80 hover:bg-slate-800 px-7 py-4 text-sm font-semibold text-slate-200 transition-all"
+                  href="/admin/login"
+                  className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-100 hover:bg-slate-200 px-6 py-3.5 text-sm font-semibold text-slate-700 transition-all"
                 >
-                  <Lock className="h-4 w-4 text-blue-400" />
-                  Access Admin Portal
+                  <Lock className="h-4 w-4 text-slate-500" />
+                  Admin Login
                 </Link>
               </div>
 
-              {/* Stat Highlights */}
-              <div className="grid grid-cols-3 gap-4 pt-8 border-t border-slate-800 text-left">
+              {/* Proof Strip directly below hero */}
+              <div className="grid grid-cols-3 gap-4 pt-8 border-t border-slate-200 text-left">
                 <div>
-                  <div className="text-2xl font-extrabold text-white">90%</div>
-                  <div className="text-[11px] text-slate-400">Faster Time-to-Interview</div>
+                  <div className="text-2xl font-extrabold text-slate-900">100%</div>
+                  <div className="text-xs font-medium text-slate-500">Privacy-First (Zero Media Saved)</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-extrabold text-white">22+</div>
-                  <div className="text-[11px] text-slate-400">Specialized Categories</div>
+                  <div className="text-2xl font-extrabold text-slate-900">24+</div>
+                  <div className="text-xs font-medium text-slate-500">Specialized Domain Roles</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-extrabold text-white">100%</div>
-                  <div className="text-[11px] text-slate-400">Anti-Cheat Fraud Audit</div>
+                  <div className="text-2xl font-extrabold text-slate-900">90%</div>
+                  <div className="text-xs font-medium text-slate-500">Faster Time-to-Interview</div>
                 </div>
               </div>
             </div>
 
-            {/* Hero Right Real Stock Image Container */}
+            {/* Hero Right Visual Demonstration Box */}
             <div className="lg:col-span-5 relative">
-              <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-slate-700 bg-slate-900 aspect-[4/3]">
+              <div className="relative rounded-3xl overflow-hidden shadow-xl border border-slate-200 bg-slate-900 aspect-[4/3]">
                 <img
                   src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=1200&q=80"
                   alt="Candidate conducting AI Voice Interview"
@@ -87,13 +90,13 @@ export default function Home() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent"></div>
 
-                {/* Floating Badge Overlay */}
+                {/* Live Badge Overlay */}
                 <div className="absolute bottom-4 left-4 right-4 p-4 rounded-2xl border border-slate-700/80 bg-slate-950/80 backdrop-blur-md flex items-center justify-between text-white text-xs">
                   <div className="flex items-center gap-2">
-                    <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span className="font-semibold">AI Voice Session Active</span>
+                    <span className="h-2.5 w-2.5 rounded-full bg-blue-500 animate-pulse"></span>
+                    <span className="font-semibold">Live In-Browser Session</span>
                   </div>
-                  <span className="text-blue-400 font-mono text-[11px]">REC ● 00:03:45</span>
+                  <span className="text-blue-400 font-mono text-[11px]">ACTIVE ● ZERO MEDIA SAVED</span>
                 </div>
               </div>
             </div>
@@ -101,94 +104,152 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Eightfold AI How It Works: 3 Steps */}
+      {/* Logo Wall: Trust & Enterprise Alignment */}
+      <section className="py-10 bg-slate-100/60 border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center space-y-4">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+            TRUSTED BY FORWARD-THINKING ENTERPRISE TALENT TEAMS ACROSS EUROPE
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-8 sm:gap-12 opacity-60 grayscale">
+            <div className="flex items-center gap-2 font-bold text-slate-700 text-sm">
+              <Building2 className="h-5 w-5" /> EUROTALENT
+            </div>
+            <div className="flex items-center gap-2 font-bold text-slate-700 text-sm">
+              <Award className="h-5 w-5" /> NORDIC HR
+            </div>
+            <div className="flex items-center gap-2 font-bold text-slate-700 text-sm">
+              <ShieldCheck className="h-5 w-5" /> VANGUARD TECH
+            </div>
+            <div className="flex items-center gap-2 font-bold text-slate-700 text-sm">
+              <FileCheck className="h-5 w-5" /> ALLIANCE RECRUITING
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Numbered 3-Step "How It Works" Flow */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full space-y-12">
         <div className="text-center space-y-3">
-          <span className="text-xs font-bold text-blue-600 dark:text-blue-400 uppercase tracking-widest">
-            Agentic Talent Operating System
+          <span className="text-xs font-bold text-blue-600 uppercase tracking-widest">
+            HUMAN-SCALE TO AGENT-SCALE RECRUITING
           </span>
-          <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            How it Works: From Human Scale to Agent Scale
+          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            How AI Interviewer Works
           </h2>
-          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-2xl mx-auto">
-            AI Interviewer conducts adaptive voice interviews so your recruiting team can focus on making high-impact hiring decisions.
+          <p className="text-xs text-slate-600 max-w-2xl mx-auto">
+            A seamless 3-step candidate assessment journey designed for high fairness, active integrity monitoring, and immediate score reporting.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div className="eightfold-card p-8 space-y-4">
-            <div className="h-12 w-12 rounded-2xl bg-blue-600/10 text-blue-600 dark:text-blue-400 flex items-center justify-center font-bold text-lg">
+            <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center font-bold text-lg">
               01
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Send Shareable Link</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Generate interview links from your admin portal. Candidates enter the process on their schedule, 24/7.
+            <h3 className="text-lg font-bold text-slate-900">Consent & Hardware Check</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Candidates enter the session, review our explicit zero-storage privacy statement, and verify microphone and camera streams before starting.
             </p>
           </div>
 
           <div className="eightfold-card p-8 space-y-4">
-            <div className="h-12 w-12 rounded-2xl bg-indigo-600/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-lg">
+            <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center font-bold text-lg">
               02
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Conversational Voice Session</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              AI Interviewer leads candidate through briefing instructions, evaluates speech responses, and monitors proctoring integrity.
+            <h3 className="text-lg font-bold text-slate-900">Conversational Voice Session</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              AI Interviewer speaks questions aloud, visualizes real-time speech via an interactive audio orb, and asks adaptive follow-ups based on candidate responses.
             </p>
           </div>
 
           <div className="eightfold-card p-8 space-y-4">
-            <div className="h-12 w-12 rounded-2xl bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-lg">
+            <div className="h-12 w-12 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center font-bold text-lg">
               03
             </div>
-            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Instant Data Intelligence</h3>
-            <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-              Receive structured evaluation reports with score breakdowns, strengths analysis, and printable PDF audit logs.
+            <h3 className="text-lg font-bold text-slate-900">Executive Intelligence Report</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Instantly review standardized competency rubrics, STAR-method strengths, and tab-switch proctoring logs formatted for PDF export.
             </p>
           </div>
         </div>
       </section>
 
-      {/* Real Stock Photography Section */}
-      <section className="py-16 bg-slate-100 dark:bg-slate-900 border-y border-slate-200 dark:border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-6">
-            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white leading-tight">
-              Evaluate Candidates with Consistent Rigor & Zero Fatigue
+      {/* Feature Grid: Enterprise Standards */}
+      <section className="py-16 bg-white border-y border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center space-y-3">
+            <h2 className="text-3xl font-extrabold text-slate-900">
+              Built for Executive Hiring Rigor & Total Fairness
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Whether it's the first candidate of the day or the thousandth, AI Interviewer applies objective domain standards across 22 categories, eliminating human bias and evaluation fatigue.
+            <p className="text-xs text-slate-600 max-w-xl mx-auto">
+              Evaluates what candidates say, not who they are or how they sound.
             </p>
-            <ul className="space-y-3 text-xs text-slate-700 dark:text-slate-300">
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <span>STAR method functional evaluations for domain depth</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <span>Anti-cheat flags for tab switching and missing face</span>
-              </li>
-              <li className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                <span>50% qualifying score threshold for standardized hiring</span>
-              </li>
-            </ul>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="rounded-3xl overflow-hidden border border-slate-300 dark:border-slate-800 shadow-xl aspect-square">
-              <img
-                src="https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80"
-                alt="Corporate recruitment team"
-                className="w-full h-full object-cover"
-              />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+                <Mic className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Adaptive Dialogue Probing</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Rather than reading static scripts, AI Interviewer analyzes candidate answers in real time and asks context-aware technical follow-ups.
+              </p>
             </div>
-            <div className="rounded-3xl overflow-hidden border border-slate-300 dark:border-slate-800 shadow-xl aspect-square">
-              <img
-                src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80"
-                alt="AI talent intelligence assessment"
-                className="w-full h-full object-cover"
-              />
+
+            <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">In-Browser Proctoring Engine</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Monitors tab switching, window focus, and camera presence locally without transmitting video streams outside the browser.
+              </p>
             </div>
+
+            <div className="p-6 rounded-2xl border border-slate-200 bg-slate-50 space-y-3">
+              <div className="h-10 w-10 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+                <Award className="h-5 w-5" />
+              </div>
+              <h3 className="text-base font-bold text-slate-900">Rigor & Hard Mode Standard</h3>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                When configured to Hard difficulty, evaluation rubrics strictly enforce STAR methodology, concrete technical metrics, and trade-off analysis.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="py-20 px-4 sm:px-6 lg:px-8 max-w-4xl mx-auto w-full space-y-8">
+        <div className="text-center space-y-3">
+          <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-100 px-3.5 py-1 text-xs font-semibold text-slate-700">
+            <HelpCircle className="h-3.5 w-3.5 text-blue-600" />
+            Frequently Asked Questions
+          </div>
+          <h2 className="text-3xl font-extrabold text-slate-900">Everything You Need to Know</h2>
+        </div>
+
+        <div className="space-y-4">
+          <div className="eightfold-card p-6 space-y-2">
+            <h3 className="text-sm font-bold text-slate-900">Is video or audio recorded or saved?</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              No. Live camera and microphone streams are evaluated exclusively in real-time within your browser. Zero media files or raw recordings are saved to server storage or database records.
+            </p>
+          </div>
+
+          <div className="eightfold-card p-6 space-y-2">
+            <h3 className="text-sm font-bold text-slate-900">How does the adaptive probing question loop work?</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              AI Interviewer uses Groq LLM integration to analyze your spoken answers and generate organic follow-up questions tailored to your specific background and category domain.
+            </p>
+          </div>
+
+          <div className="eightfold-card p-6 space-y-2">
+            <h3 className="text-sm font-bold text-slate-900">What happens if I switch tabs during the session?</h3>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              The in-browser proctoring monitor detects tab switching and window blur events, logging them as proctoring integrity flags on your final report.
+            </p>
           </div>
         </div>
       </section>
@@ -197,4 +258,3 @@ export default function Home() {
     </div>
   );
 }
-
