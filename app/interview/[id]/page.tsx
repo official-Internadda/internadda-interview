@@ -26,6 +26,7 @@ export default function CandidateInterviewPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // 1. Load Interview configuration
   useEffect(() => {
     async function loadInterview() {
       try {
@@ -38,7 +39,7 @@ export default function CandidateInterviewPage() {
         }
         setInterview(data.interview);
       } catch (err: any) {
-        setError(err.message || 'Failed to load interview');
+        setError(err.message || 'Failed to load interview session');
       } finally {
         setLoading(false);
       }
@@ -46,6 +47,22 @@ export default function CandidateInterviewPage() {
 
     if (interviewId) loadInterview();
   }, [interviewId]);
+
+  // 2. Strict Privacy & Media Track Cleanup on unmount/page unload
+  useEffect(() => {
+    const handleCleanup = () => {
+      if (mediaStream) {
+        mediaStream.getTracks().forEach((track) => track.stop());
+      }
+    };
+
+    window.addEventListener('beforeunload', handleCleanup);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleCleanup);
+      handleCleanup();
+    };
+  }, [mediaStream]);
 
   const handlePreCheckComplete = async (info: { name: string; email: string; stream: MediaStream }) => {
     setCandidateInfo({ name: info.name, email: info.email });
@@ -67,7 +84,6 @@ export default function CandidateInterviewPage() {
       if (!res.ok) throw new Error(data.error || 'Failed to start interview session');
 
       setAttempt(data.attempt);
-      // Move to Candidate Instructions Briefing Screen
       setStep('instructions');
     } catch (err: any) {
       alert(err.message || 'Error starting session');
@@ -75,11 +91,14 @@ export default function CandidateInterviewPage() {
   };
 
   const handleInstructionsProceed = () => {
-    // Proceed to Live AI Voice Session
     setStep('live');
   };
 
   const handleFinish = (disqualified = false, flags: any[] = []) => {
+    // Release media stream immediately on completion
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((track) => track.stop());
+    }
     setStep('finished');
     if (attempt) {
       router.push(`/interview/${interviewId}/report/${attempt.id}`);
@@ -88,12 +107,12 @@ export default function CandidateInterviewPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
         <Navbar />
         <main className="flex flex-1 items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-slate-500">
             <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin"></div>
-            <p className="text-xs">Preparing Eightfold AI Session...</p>
+            <p className="text-xs">Preparing Autonomous AI Interview Session...</p>
           </div>
         </main>
         <Footer />
@@ -103,13 +122,13 @@ export default function CandidateInterviewPage() {
 
   if (error || !interview) {
     return (
-      <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
         <Navbar />
         <main className="flex flex-1 items-center justify-center px-4 py-12">
-          <div className="max-w-md w-full rounded-3xl border border-rose-500/20 bg-rose-500/10 p-6 text-center space-y-4">
-            <XCircle className="h-10 w-10 text-rose-500 mx-auto" />
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Interview Link Error</h2>
-            <p className="text-xs text-rose-700 dark:text-rose-300">{error || 'Interview session is unavailable.'}</p>
+          <div className="max-w-md w-full rounded-2xl border border-rose-200 bg-rose-50 p-6 text-center space-y-4">
+            <XCircle className="h-10 w-10 text-rose-600 mx-auto" />
+            <h2 className="text-lg font-bold text-slate-900">Interview Session Unavailable</h2>
+            <p className="text-xs text-rose-800">{error || 'The requested interview link is inactive or invalid.'}</p>
           </div>
         </main>
         <Footer />
@@ -118,7 +137,7 @@ export default function CandidateInterviewPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="flex min-h-screen flex-col bg-slate-50 text-slate-900">
       <Navbar />
 
       <main className="flex-1">
@@ -158,7 +177,7 @@ export default function CandidateInterviewPage() {
           <div className="flex min-h-[60vh] items-center justify-center">
             <div className="text-center space-y-3">
               <div className="h-8 w-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin mx-auto"></div>
-              <p className="text-xs text-slate-500">Redirecting to candidate report...</p>
+              <p className="text-xs text-slate-500">Generating Candidate Evaluation Report...</p>
             </div>
           </div>
         )}
