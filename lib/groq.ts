@@ -22,7 +22,7 @@ export interface EvaluatedAnswer {
 }
 
 /**
- * Generate Next Interview Question
+ * Generate Next Interview Question with Adaptive Dialogue Probing & Hard Mode Rigor
  */
 export async function generateQuestion(params: {
   category: string;
@@ -38,10 +38,10 @@ export async function generateQuestion(params: {
     const fallbackQuestions: Record<string, string[]> = {
       default: [
         `Welcome! Let's start with your background in ${category}. Could you walk me through a key project or experience that demonstrates your core competencies?`,
-        `How do you handle ambiguous situations or technical roadblocks when working under tight deadlines in ${category}?`,
-        `Can you describe a specific situation where you identified an operational flaw or optimization opportunity in ${category} and resolved it?`,
-        `Given a high-stakes scenario with competing stakeholder priorities, how do you make trade-offs?`,
-        `Finally, what emerging trends or innovations in ${category} do you believe will shape the industry over the next 2-3 years?`
+        `How do you handle technical roadblocks or competing stakeholder priorities when working under tight deadlines in ${category}?`,
+        `Can you describe a specific situation where you identified an architectural or process flaw in ${category} and resolved it?`,
+        `Given a high-stakes scenario with tight constraints, what trade-offs do you prioritize and how do you measure success?`,
+        `Finally, what emerging trends or industry standards in ${category} do you believe will shape future development over the next 2-3 years?`
       ]
     };
 
@@ -49,68 +49,70 @@ export async function generateQuestion(params: {
     const qText = qList[(questionIndex - 1) % qList.length];
     return {
       question_text: qText,
-      context_hint: `Question ${questionIndex} of ${totalQuestions} (${difficulty.toUpperCase()} difficulty)`
+      context_hint: `Question ${questionIndex} of ${totalQuestions} (${difficulty.toUpperCase()} difficulty standard)`
     };
   }
 
-  const systemPrompt = `You are InternAdda, a world-class AI corporate interviewer conducting a professional mock interview for Upforge.org.
-Category: ${category}
-Difficulty: ${difficulty.toUpperCase()}
-Question Number: ${questionIndex} out of ${totalQuestions}.
+  const isHardMode = difficulty === 'hard';
 
-Difficulty Guidelines:
-- EASY: Foundational, open-ended question. Friendly tone, tests practical knowledge.
-- MEDIUM: In-depth, practical scenario or problem-solving question. Expects structured, detailed answers (STAR method).
-- HARD: Complex, edge-case system design or strategic decision-making question under constraints. Tests deep mastery.
+  const systemPrompt = `You are AI Interviewer, Europe's premier privacy-first autonomous talent evaluation engine.
+Domain Category: ${category}
+Difficulty Tier: ${difficulty.toUpperCase()}
+Question Index: ${questionIndex} of ${totalQuestions}.
+
+Difficulty Guidelines & Probing Intensity:
+- EASY: Foundational, open-ended question testing practical domain literacy. Constructive and encouraging tone.
+- MEDIUM: In-depth scenario or problem-solving question requiring structured explanation (STAR method: Situation, Task, Action, Result).
+- HARD (EXECUTIVE RIGOR): Deeply analytical probing. Challenge assumptions, demand concrete metrics, ask for specific technical/architectural trade-offs, and call out vague generalizations. If candidate's previous response was brief or vague, explicitly ask them to quantify their impact or explain their exact technical implementation choices.
 
 ${
   previousQuestionsAndAnswers.length > 0
-    ? `Previous Questions & Answers:\n` +
+    ? `Candidate Dialogue History:\n` +
       previousQuestionsAndAnswers
-        .map((item, idx) => `Q${idx + 1}: ${item.question}\nA${idx + 1}: ${item.answer}`)
+        .map((item, idx) => `Turn Q${idx + 1}: ${item.question}\nCandidate A${idx + 1}: ${item.answer}`)
         .join('\n\n')
-    : 'This is the first question of the interview.'
+    : 'This is the opening question of the interview session.'
 }
 
 Instructions:
-1. Ask EXACTLY ONE question for question #${questionIndex}.
-2. If previous answers were given, make this question organically build on or naturally follow up on what the candidate mentioned.
-3. Keep the tone warm, concise, and executive corporate.
-4. Output valid JSON in the format:
+1. Output EXACTLY ONE clear spoken question for Question #${questionIndex}.
+2. If previous answers exist, organically build on what the candidate mentioned — ask a natural context-aware follow-up.
+3. ${isHardMode ? 'In HARD mode, dig deep into specific metrics, trade-offs, and edge cases. Do not let vague answers pass.' : 'Keep tone professional, clear, and focused on core competencies.'}
+4. Output ONLY valid JSON matching this schema:
 {
-  "question_text": "Your concise question string here",
-  "context_hint": "A short 1-line guidance on what key aspects to cover in their answer"
+  "question_text": "Your concise spoken question string here",
+  "context_hint": "A 1-line guidance on what key metrics or structure the evaluator expects in their response"
 }`;
 
   try {
     const response = await groq.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Please provide question #${questionIndex} for the candidate.` }
+        { role: 'user', content: `Generate question #${questionIndex} for ${category} (${difficulty} difficulty).` }
       ],
       model: GROQ_MODEL_VERSATILE,
       response_format: { type: 'json_object' },
-      temperature: 0.7,
+      temperature: isHardMode ? 0.6 : 0.7,
       max_tokens: 350
     });
 
     const content = response.choices[0]?.message?.content || '{}';
     const parsed = JSON.parse(content);
     return {
-      question_text: parsed.question_text || `Can you detail your experience in ${category}?`,
-      context_hint: parsed.context_hint || 'Focus on concrete examples and results.'
+      question_text: parsed.question_text || `Could you elaborate on your practical experience and technical approach in ${category}?`,
+      context_hint: parsed.context_hint || 'Focus on specific implementation details and quantifiable outcomes.'
     };
   } catch (error) {
     console.error('Groq generateQuestion error:', error);
     return {
-      question_text: `Could you share a practical example of a challenging situation you encountered in ${category} and how you navigated it?`,
-      context_hint: 'Highlight problem solving and outcomes.'
+      question_text: `Could you share a concrete scenario in ${category} where you overcame a complex technical or operational obstacle?`,
+      context_hint: 'Detail your specific role, actions taken, and measurable results.'
     };
   }
 }
 
 /**
- * Evaluate Candidate Answer
+ * Evaluate Candidate Answer against Domain Rubric
  */
 export async function evaluateAnswer(params: {
   category: string;
@@ -132,39 +134,39 @@ export async function evaluateAnswer(params: {
       max_score: 10,
       feedback:
         wordCount > 25
-          ? 'Good response addressing key points of the prompt.'
-          : 'Response was brief. Consider using the STAR method for a more comprehensive breakdown.',
+          ? 'Good response addressing key aspects of the prompt.'
+          : 'Response was brief. Use the STAR method (Situation, Task, Action, Result) for a comprehensive breakdown.',
       strengths: ['Clear articulate delivery', 'Addressed core topic'],
-      areas_for_improvement: wordCount < 30 ? ['Provide more granular metrics and concrete outcomes'] : ['Deeper technical elaboration']
+      areas_for_improvement: wordCount < 30 ? ['Include specific metrics and concrete results'] : ['Deeper technical elaboration']
     };
   }
 
-  const systemPrompt = `You are InternAdda, an executive evaluator scoring candidate interview responses for Upforge.org.
-Category: ${category}
-Difficulty: ${difficulty.toUpperCase()}
+  const systemPrompt = `You are AI Interviewer, Europe's objective corporate talent evaluation engine scoring candidate responses.
+Domain Category: ${category}
+Difficulty Level: ${difficulty.toUpperCase()}
 
 Difficulty Rubric & Severity:
-- EASY: Generous grading. If answer covers the basics clearly, grant 7-10/10. 50% qualifying threshold is easy.
-- MEDIUM: Strict rubric. Penalize heavily for vague generalizations, lack of concrete metrics, or incomplete logic. Grant 4-7/10 for standard answers. 50% qualifying bar must be genuinely hard to cross.
-- HARD: Near-expert rubric. Minimal partial credit. Require deep domain mastery, risk awareness, and flawless rationale. Grant 2-5/10 for average answers. 50% bar is very difficult to reach.
+- EASY: Generous grading. Clear foundational understanding earns 7-10/10. 50% qualification bar is accessible.
+- MEDIUM: Standard executive rubric. Require clear STAR methodology logic, domain terminology, and structured answers. Vague responses earn 4-6/10.
+- HARD (RIGOROUS): Near-expert rubric. Minimal partial credit. Penalize buzzword usage without substance, vague statements without metrics, or missing technical depth. Grant 2-5/10 for average or high-level answers. The 50% qualification threshold requires solid, verifiable depth.
 
 Question Asked: "${question}"
-Candidate Answer: "${answer}"
+Candidate Response: "${answer}"
 
 Instructions:
-Evaluate the answer rigorously according to the difficulty tier. Output ONLY valid JSON:
+Evaluate objectively according to the specified difficulty tier. Output ONLY valid JSON:
 {
   "score": <number between 0 and 10>,
-  "feedback": "<2-3 sentence constructive executive feedback>",
-  "strengths": ["<strength 1>", "<strength 2>"],
-  "areas_for_improvement": ["<area 1>", "<area 2>"]
+  "feedback": "<2-3 sentence constructive executive evaluation feedback>",
+  "strengths": ["<key strength 1>", "<key strength 2>"],
+  "areas_for_improvement": ["<improvement area 1>", "<improvement area 2>"]
 }`;
 
   try {
     const response = await groq.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Evaluate the response now.' }
+        { role: 'user', content: 'Evaluate this candidate response now.' }
       ],
       model: GROQ_MODEL_VERSATILE,
       response_format: { type: 'json_object' },
@@ -177,18 +179,18 @@ Evaluate the answer rigorously according to the difficulty tier. Output ONLY val
     return {
       score: typeof parsed.score === 'number' ? parsed.score : 6,
       max_score: 10,
-      feedback: parsed.feedback || 'Answer noted and evaluated against corporate standards.',
-      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['Clear communication'],
-      areas_for_improvement: Array.isArray(parsed.areas_for_improvement) ? parsed.areas_for_improvement : ['Include measurable impacts']
+      feedback: parsed.feedback || 'Response evaluated against standardized European talent rubrics.',
+      strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['Clear domain communication'],
+      areas_for_improvement: Array.isArray(parsed.areas_for_improvement) ? parsed.areas_for_improvement : ['Include measurable outcomes and technical depth']
     };
   } catch (error) {
     console.error('Groq evaluateAnswer error:', error);
     return {
       score: 6,
       max_score: 10,
-      feedback: 'Answer acknowledged. Evaluated based on category standard.',
-      strengths: ['Direct response to prompt'],
-      areas_for_improvement: ['Elaborate further on implementation details']
+      feedback: 'Response acknowledged and scored against category standard.',
+      strengths: ['Direct response to question prompt'],
+      areas_for_improvement: ['Elaborate further on implementation specifics']
     };
   }
 }
