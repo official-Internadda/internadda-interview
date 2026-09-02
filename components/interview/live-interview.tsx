@@ -13,7 +13,9 @@ import {
   ChevronRight,
   Radio,
   Video,
-  AlertTriangle
+  AlertTriangle,
+  Lock,
+  Headphones
 } from 'lucide-react';
 import { Interview, CandidateAttempt, FraudFlag } from '@/lib/types';
 import { ProctoringMonitor } from './proctoring-monitor';
@@ -25,6 +27,8 @@ interface LiveInterviewProps {
   onFinish: (disqualified?: boolean, flags?: FraudFlag[]) => void;
 }
 
+type VoiceState = 'idle' | 'ai_speaking' | 'listening' | 'processing';
+
 export function LiveInterview({
   interview,
   attempt,
@@ -35,31 +39,173 @@ export function LiveInterview({
   const [questionText, setQuestionText] = useState('');
   const [contextHint, setContextHint] = useState('');
   const [answerText, setAnswerText] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+  const [voiceState, setVoiceState] = useState<VoiceState>('idle');
   const [isAudioMuted, setIsAudioMuted] = useState(false);
-  const [timerSeconds, setTimerSeconds] = useState(180); // 3 mins per question
+  const [timerSeconds, setTimerSeconds] = useState(interview.difficulty === 'hard' ? 120 : 180);
   const [loadingQuestion, setLoadingQuestion] = useState(true);
   const [submittingAnswer, setSubmittingAnswer] = useState(false);
   const [qaHistory, setQaHistory] = useState<{ question: string; answer: string }[]>([]);
   const [fraudFlags, setFraudFlags] = useState<FraudFlag[]>([]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const recognitionRef = useRef<any>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const voiceStateRef = useRef<VoiceState>('idle');
 
-  // Attach media stream to video preview box
+  // Sync ref with state for speech callbacks
+  useEffect(() => {
+    voiceStateRef.current = voiceState;
+  }, [voiceState]);
+
+  // Attach webcam stream to video element
   useEffect(() => {
     if (videoRef.current && mediaStream) {
       videoRef.current.srcObject = mediaStream;
     }
   }, [mediaStream]);
 
-  // Load initial question
+  // Initialize Web Audio Analyser for Real-Time Mic Level Canvas Orb
+  useEffect(() => {
+    if (!mediaStream) return;
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtx) {
+        const ctx = new AudioCtx();
+        audioContextRef.current = ctx;
+        const source = ctx.createMediaStreamSource(mediaStream);
+        const analyser = ctx.createAnalyser();
+        analyser.fftSize = 128;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+      }
+    } catch (err) {
+      console.error('AudioContext setup error:', err);
+    }
+
+    return () => {
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+      }
+    };
+  }, [mediaStream]);
+
+  // Canvas Audio Orb Visualizer Animation Loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let step = 0;
+    const dataArray = new Uint8Array(64);
+
+    const renderOrb = () => {
+      step += 0.05;
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerX = width / 2;
+      const centerY = height / 2;
+      const baseRadius = 55;
+
+      ctx.clearRect(0, 0, width, height);
+
+      let amplitude = 0;
+      if (analyserRef.current && voiceStateRef.current === 'listening') {
+        analyserRef.current.getByteFrequencyData(dataArray);
+        let sum = 0;
+        for (let i = 0; i < dataArray.length; i++) {
+          sum += dataArray[i];
+        }
+        amplitude = sum / dataArray.length / 255;
+      }
+
+      // Draw concentric ambient aura rings
+      const currentState = voiceStateRef.current;
+      const pulseFactor = currentState === 'ai_speaking'
+        ? Math.sin(step * 3) * 8
+        : currentState === 'listening'
+        ? amplitude * 25
+        : Math.sin(step) * 3;
+
+      const primaryColor = currentState === 'ai_speaking'
+        ? 'rgba(37, 99, 235, ' // Cool blue
+        : currentState === 'listening'
+        ? 'rgba(16, 185, 129, ' // Emerald green input
+        : currentState === 'processing'
+        ? 'rgba(245, 158, 11, ' // Amber processing
+        : 'rgba(99, 102, 241, '; // Soft indigo idle
+
+      // Outer ripple rings
+      for (let r = 3; r >= 1; r--) {
+        ctx.beginPath();
+        const rRadius = baseRadius + r * 14 + pulseFactor * (r * 0.5);
+        ctx.arc(centerX, centerY, rRadius, 0, Math.PI * 2);
+        ctx.fillStyle = `${primaryColor}${0.08 / r})`;
+        ctx.fill();
+      }
+
+      // Main Orb Circle
+      ctx.beginPath();
+      ctx.arc(centerX, centerY, baseRadius + pulseFactor, 0, Math.PI * 2);
+      const gradient = ctx.createRadialGradient(centerX, centerY, 10, centerX, centerY, baseRadius + pulseFactor);
+      if (currentState === 'ai_speaking') {
+        gradient.addColorStop(0, '#3b82f6');
+        gradient.addColorStop(1, '#1d4ed8');
+      } else if (currentState === 'listening') {
+        gradient.addColorStop(0, '#10b981');
+        gradient.addColorStop(1, '#047857');
+      } else if (currentState === 'processing') {
+        gradient.addColorStop(0, '#f59e0b');
+        gradient.addColorStop(1, '#d97706');
+      } else {
+        gradient.addColorStop(0, '#6366f1');
+        gradient.addColorStop(1, '#4338ca');
+      }
+      ctx.fillStyle = gradient;
+      ctx.shadowColor = currentState === 'ai_speaking' ? '#2563eb' : '#10b981';
+      ctx.shadowBlur = 20;
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Draw real-time reactive soundwave dots inside orb
+      if (currentState === 'listening' || currentState === 'ai_speaking') {
+        ctx.beginPath();
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+        ctx.lineWidth = 2;
+        const wavePoints = 12;
+        for (let i = 0; i < wavePoints; i++) {
+          const angle = (i / wavePoints) * Math.PI * 2 + step;
+          const dist = (baseRadius - 15) + (currentState === 'listening' ? amplitude * 18 * Math.sin(i + step * 2) : Math.sin(step * 4 + i) * 6);
+          const x = centerX + Math.cos(angle) * dist;
+          const y = centerY + Math.sin(angle) * dist;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+
+      animFrameRef.current = requestAnimationFrame(renderOrb);
+    };
+
+    renderOrb();
+
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, []);
+
+  // Initialize Question turn
   useEffect(() => {
     fetchNextQuestion(1, []);
   }, []);
 
-  // Timer countdown
+  // Timer countdown per question
   useEffect(() => {
     if (loadingQuestion || submittingAnswer) return;
 
@@ -77,73 +223,117 @@ export function LiveInterview({
     return () => clearInterval(interval);
   }, [loadingQuestion, submittingAnswer, currentQuestionIndex]);
 
-  // Web Speech API Voice Recognition Initialization
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (SpeechRecognition) {
-        const recognition = new SpeechRecognition();
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
+  // Web Speech API Voice Recognition setup (continuous = false per turn)
+  const startListening = () => {
+    if (typeof window === 'undefined') return;
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
-        recognition.onresult = (event: any) => {
-          let transcript = '';
-          for (let i = 0; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript + ' ';
-          }
-          setAnswerText(transcript);
-        };
-
-        recognition.onerror = (event: any) => {
-          console.error('Speech recognition error:', event.error);
-          setIsRecording(false);
-        };
-
-        recognition.onend = () => {
-          setIsRecording(false);
-        };
-
-        recognitionRef.current = recognition;
-      }
+    if (!SpeechRecognition) {
+      return;
     }
-  }, []);
 
-  // Text-To-Speech (TTS) Voice Synthesis
+    try {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false; // Turn-by-turn fresh recognition prevents buffer bleed
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setVoiceState('listening');
+      };
+
+      recognition.onresult = (event: any) => {
+        // DISCARD any transcript if AI is currently speaking! (Acoustic loop protection)
+        if (voiceStateRef.current === 'ai_speaking') return;
+
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript + ' ';
+        }
+        setAnswerText((prev) => {
+          const trimmed = prev.trim();
+          return trimmed ? `${trimmed} ${transcript.trim()}` : transcript.trim();
+        });
+      };
+
+      recognition.onerror = (event: any) => {
+        console.error('Speech recognition error:', event.error);
+        if (voiceStateRef.current === 'listening') {
+          setVoiceState('idle');
+        }
+      };
+
+      recognition.onend = () => {
+        if (voiceStateRef.current === 'listening') {
+          setVoiceState('idle');
+        }
+      };
+
+      recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err) {
+      console.error('Failed to start speech recognition:', err);
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+    }
+    setVoiceState('idle');
+  };
+
+  // Text-To-Speech (TTS) Voice Synthesis with state machine lock
   const speakQuestion = (text: string) => {
     if (typeof window === 'undefined' || isAudioMuted) return;
+
     if ('speechSynthesis' in window) {
+      // 1. STOP microphone recognition before TTS starts speaking!
+      stopListening();
       window.speechSynthesis.cancel();
+
+      setVoiceState('ai_speaking');
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
 
-      utterance.onstart = () => setIsAiSpeaking(true);
-      utterance.onend = () => setIsAiSpeaking(false);
-      utterance.onerror = () => setIsAiSpeaking(false);
+      utterance.onstart = () => {
+        setVoiceState('ai_speaking');
+      };
+
+      utterance.onend = () => {
+        setVoiceState('idle');
+        // 2. Add 400ms acoustic tail clearing delay before enabling mic recognizer!
+        setTimeout(() => {
+          if (voiceStateRef.current === 'idle') {
+            startListening();
+          }
+        }, 400);
+      };
+
+      utterance.onerror = () => {
+        setVoiceState('idle');
+      };
 
       window.speechSynthesis.speak(utterance);
     }
   };
 
   const toggleRecording = () => {
-    if (!recognitionRef.current) {
-      alert('Web Speech API is not supported in this browser. Please type your response using the text area.');
-      return;
-    }
-
-    if (isAiSpeaking && typeof window !== 'undefined') {
+    if (voiceState === 'ai_speaking') {
       window.speechSynthesis.cancel();
-      setIsAiSpeaking(false);
+      setVoiceState('idle');
     }
 
-    if (isRecording) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
+    if (voiceState === 'listening') {
+      stopListening();
     } else {
-      recognitionRef.current.start();
-      setIsRecording(true);
+      startListening();
     }
   };
 
@@ -152,7 +342,8 @@ export function LiveInterview({
     history: { question: string; answer: string }[]
   ) => {
     setLoadingQuestion(true);
-    setTimerSeconds(180);
+    setVoiceState('processing');
+    setTimerSeconds(interview.difficulty === 'hard' ? 120 : 180);
 
     try {
       const res = await fetch('/api/interview/generate-question', {
@@ -168,14 +359,14 @@ export function LiveInterview({
       });
 
       const data = await res.json();
-      const textToUse = data.question_text || `Please describe a key project or scenario in ${interview.category}.`;
+      const textToUse = data.question_text || `Please detail a core engineering or leadership challenge you faced in ${interview.category}.`;
       setQuestionText(textToUse);
       setContextHint(data.context_hint || '');
 
       speakQuestion(textToUse);
     } catch (err) {
       console.error('Failed to fetch question:', err);
-      const fallbackText = `Could you share a practical scenario from your work in ${interview.category}?`;
+      const fallbackText = `Could you describe a technical or strategic decision you made in ${interview.category} and its quantifiable outcome?`;
       setQuestionText(fallbackText);
       speakQuestion(fallbackText);
     } finally {
@@ -192,16 +383,12 @@ export function LiveInterview({
 
     if (typeof window !== 'undefined') {
       window.speechSynthesis.cancel();
-      setIsAiSpeaking(false);
     }
-
-    if (isRecording && recognitionRef.current) {
-      recognitionRef.current.stop();
-      setIsRecording(false);
-    }
-
+    stopListening();
+    setVoiceState('processing');
     setSubmittingAnswer(true);
-    const currentAns = answerText.trim() || (isTimeUp ? '(Time expired - No answer recorded)' : '(No answer typed)');
+
+    const currentAns = answerText.trim() || (isTimeUp ? '(Time expired - No spoken or typed response recorded)' : '(No response typed)');
 
     try {
       await fetch('/api/interview/evaluate-answer', {
@@ -248,6 +435,7 @@ export function LiveInterview({
     if (typeof window !== 'undefined') {
       window.speechSynthesis.cancel();
     }
+    stopListening();
     setFraudFlags(flags);
     await fetch('/api/interview/finish', {
       method: 'POST',
@@ -274,18 +462,25 @@ export function LiveInterview({
         onFraudWarning={(flag) => setFraudFlags((prev) => [...prev, flag])}
       />
 
-      {/* Eightfold Top Status Control Bar */}
+      {/* Top Status & Session Control Bar */}
       <div className="eightfold-card p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white font-bold shadow-md">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white font-bold shadow-sm shrink-0">
             <Sparkles className="h-5 w-5" />
           </div>
           <div>
-            <span className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider block">
-              Eightfold AI Interviewer Engine
-            </span>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              Candidate: <strong className="text-slate-900 dark:text-slate-200 font-semibold">{attempt.candidate_name}</strong> ({interview.category})
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                AI Interviewer Session
+              </span>
+              {interview.difficulty === 'hard' && (
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">
+                  Hard Mode Rigor
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] text-slate-500">
+              Candidate: <strong className="text-slate-900 font-semibold">{attempt.candidate_name}</strong> ({interview.category})
             </span>
           </div>
         </div>
@@ -293,116 +488,107 @@ export function LiveInterview({
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
-              setIsAudioMuted(!isAudioMuted);
-              if (!isAudioMuted && typeof window !== 'undefined') {
+              const newMute = !isAudioMuted;
+              setIsAudioMuted(newMute);
+              if (newMute && typeof window !== 'undefined') {
                 window.speechSynthesis.cancel();
-                setIsAiSpeaking(false);
+                setVoiceState('idle');
               }
             }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-all"
           >
             {isAudioMuted ? (
               <>
-                <VolumeX className="h-4 w-4 text-rose-500" />
+                <VolumeX className="h-4 w-4 text-rose-600" />
                 <span>Audio Muted</span>
               </>
             ) : (
               <>
-                <Volume2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <Volume2 className="h-4 w-4 text-blue-600" />
                 <span>Audio Output On</span>
               </>
             )}
           </button>
 
-          <div className="flex items-center gap-2 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-1.5 text-xs text-slate-700 dark:text-slate-300">
-            <Clock className={`h-4 w-4 ${timerSeconds < 30 ? 'text-rose-500 animate-pulse' : 'text-blue-600 dark:text-blue-400'}`} />
-            <strong className={`font-mono text-sm ${timerSeconds < 30 ? 'text-rose-600' : 'text-slate-900 dark:text-white'}`}>
+          <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs text-slate-700">
+            <Clock className={`h-4 w-4 ${timerSeconds < 30 ? 'text-rose-600 animate-pulse' : 'text-blue-600'}`} />
+            <strong className={`font-mono text-sm ${timerSeconds < 30 ? 'text-rose-600' : 'text-slate-900'}`}>
               {timerFormatted}
             </strong>
           </div>
 
-          <div className="rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 px-3.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-200">
-            Question <span className="text-blue-600 dark:text-blue-400">{currentQuestionIndex}</span> / {interview.num_questions}
+          <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-1.5 text-xs font-bold text-slate-800">
+            Question <span className="text-blue-600">{currentQuestionIndex}</span> / {interview.num_questions}
           </div>
         </div>
       </div>
 
-      {/* Eightfold Split Screen Layout (Desktop: Side-by-Side | Mobile: Stacked) */}
+      {/* Main Split-Screen Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Side: AI Interviewer Voice Box */}
+        {/* Left Side: Interactive Voice Box & Canvas Orb */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="eightfold-card p-6 sm:p-8 space-y-6 text-center shadow-xl relative overflow-hidden">
+          <div className="eightfold-card p-6 sm:p-8 space-y-6 text-center relative overflow-hidden">
             {/* Live State Badge */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-blue-500/30 bg-blue-500/10 px-4 py-1.5 text-xs font-bold text-blue-600 dark:text-blue-400">
-              <Radio className="h-4 w-4 animate-pulse text-blue-500" />
-              {submittingAnswer
-                ? 'EVALUATING RESPONSE...'
-                : isAiSpeaking
-                ? 'AI DIGITAL RECRUITER SPEAKING...'
-                : isRecording
+            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-xs font-bold text-slate-700">
+              <Radio className={`h-4 w-4 ${voiceState === 'ai_speaking' ? 'text-blue-600 animate-pulse' : voiceState === 'listening' ? 'text-emerald-600 animate-pulse' : 'text-slate-400'}`} />
+              {voiceState === 'ai_speaking'
+                ? 'AI INTERVIEWER SPEAKING...'
+                : voiceState === 'listening'
                 ? 'LISTENING TO CANDIDATE...'
+                : voiceState === 'processing'
+                ? 'EVALUATING COMPETENCY...'
                 : 'READY FOR ANSWER'}
             </div>
 
-            {/* Glowing AI Voice Orb & Waveform */}
-            <div className="relative my-6 flex items-center justify-center">
-              <div
-                className={`h-28 w-28 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-sky-400 flex items-center justify-center shadow-xl transition-all duration-300 ${
-                  isAiSpeaking || isRecording ? 'animate-orb-glow scale-105' : 'opacity-90'
-                }`}
-              >
-                <div className="h-20 w-20 rounded-full bg-white dark:bg-slate-950 flex items-center justify-center">
-                  <Sparkles className={`h-8 w-8 ${isAiSpeaking ? 'text-blue-600 animate-spin' : isRecording ? 'text-rose-500 animate-pulse' : 'text-indigo-500'}`} />
-                </div>
-              </div>
-
-              {(isAiSpeaking || isRecording) && (
-                <div className="absolute -bottom-3 flex items-center gap-1">
-                  {[1, 2, 3, 4, 5, 6, 7].map((bar) => (
-                    <div
-                      key={bar}
-                      className="w-1.5 rounded-full bg-blue-600 animate-voice-bar"
-                      style={{ animationDelay: `${bar * 0.15}s` }}
-                    />
-                  ))}
-                </div>
-              )}
+            {/* Real-time HTML5 Canvas Audio Orb Visualizer */}
+            <div className="relative my-4 flex items-center justify-center">
+              <canvas
+                ref={canvasRef}
+                width={220}
+                height={220}
+                className="mx-auto rounded-full"
+              />
             </div>
 
             {/* Question Display */}
             {loadingQuestion ? (
               <div className="py-6 text-slate-400 text-sm animate-pulse">
-                Composing next question for {interview.category}...
+                Generating domain-adaptive question...
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 dark:text-white leading-relaxed">
+                <p className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 leading-relaxed">
                   "{questionText}"
                 </p>
 
                 {contextHint && (
-                  <p className="text-xs text-blue-600 dark:text-blue-300 bg-blue-500/10 border border-blue-500/20 px-4 py-2 rounded-xl inline-block">
+                  <p className="text-xs text-blue-800 bg-blue-50 border border-blue-200 px-4 py-2 rounded-xl inline-block">
                     💡 <strong className="font-semibold">Evaluator Guidance:</strong> {contextHint}
                   </p>
                 )}
 
-                <div className="pt-2">
+                <div className="pt-2 flex items-center justify-center gap-3">
                   <button
                     onClick={() => speakQuestion(questionText)}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-all"
                   >
-                    <RotateCcw className="h-3.5 w-3.5 text-blue-500" />
-                    Replay Voice Question
+                    <RotateCcw className="h-3.5 w-3.5 text-blue-600" />
+                    Replay Question Audio
                   </button>
+
+                  <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                    <Headphones className="h-3.5 w-3.5 text-slate-400" />
+                    Headphones recommended
+                  </span>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Speech Transcript & Response Editor */}
-          <div className="eightfold-card p-6 space-y-4 shadow-xl">
+          {/* Candidate Speech Transcript & Response Area */}
+          <div className="eightfold-card p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-900 dark:text-slate-200 uppercase tracking-wider">
+              <label className="text-xs font-bold text-slate-900 uppercase tracking-wider">
                 Candidate Speech Transcript
               </label>
 
@@ -410,14 +596,14 @@ export function LiveInterview({
                 type="button"
                 onClick={toggleRecording}
                 className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-semibold transition-all ${
-                  isRecording
-                    ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30 animate-pulse'
-                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/20'
+                  voiceState === 'listening'
+                    ? 'bg-rose-600 text-white shadow-md animate-pulse'
+                    : 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm'
                 }`}
               >
-                {isRecording ? (
+                {voiceState === 'listening' ? (
                   <>
-                    <MicOff className="h-4 w-4" /> Stop Voice Recording
+                    <MicOff className="h-4 w-4" /> Pause Speech Recording
                   </>
                 ) : (
                   <>
@@ -432,8 +618,8 @@ export function LiveInterview({
                 rows={4}
                 value={answerText}
                 onChange={(e) => setAnswerText(e.target.value)}
-                placeholder="Click 'Click to Speak Response' to record your speech, or type your answer directly..."
-                className="w-full rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 p-4 text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:border-blue-600 focus:outline-none transition-colors"
+                placeholder="Click 'Click to Speak Response' to capture microphone input, or type your response directly..."
+                className="w-full rounded-xl border border-slate-300 bg-slate-50 p-4 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-600 focus:bg-white focus:outline-none transition-colors"
               />
               <div className="absolute bottom-3 right-3 text-[11px] text-slate-400">
                 {answerText.trim().split(/\s+/).filter(Boolean).length} words
@@ -441,15 +627,16 @@ export function LiveInterview({
             </div>
 
             <div className="flex items-center justify-between pt-2">
-              <span className="text-[11px] text-slate-500">
-                Evaluation follows Eightfold domain rubrics.
+              <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+                Evaluation follows standardized STAR rubric
               </span>
 
               <button
                 type="button"
                 disabled={submittingAnswer || loadingQuestion}
                 onClick={() => submitAnswerCurrent(false)}
-                className="inline-flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-xs font-semibold text-white shadow-lg shadow-blue-600/25 active:scale-95 disabled:opacity-40 transition-all"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-700 px-6 py-2.5 text-xs font-semibold text-white shadow-sm active:scale-95 disabled:opacity-40 transition-all"
               >
                 {submittingAnswer ? (
                   <span className="flex items-center gap-2">
@@ -467,23 +654,22 @@ export function LiveInterview({
           </div>
         </div>
 
-        {/* Right Side: Candidate Video Recording Container */}
+        {/* Right Side: In-Browser Candidate Video Feed */}
         <div className="lg:col-span-5 space-y-4">
-          <div className="eightfold-card p-5 space-y-4 shadow-xl">
+          <div className="eightfold-card p-5 space-y-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-900 uppercase tracking-wider">
                 <Video className="h-4 w-4 text-blue-600" />
-                Candidate Recording Feed
+                Live Candidate Camera Feed
               </div>
 
-              {/* Red REC dot indicator */}
-              <div className="flex items-center gap-1.5 rounded-full bg-rose-500/10 border border-rose-500/20 px-3 py-1 text-[11px] font-bold text-rose-600 dark:text-rose-400">
+              <div className="flex items-center gap-1.5 rounded-full bg-rose-50 border border-rose-200 px-3 py-1 text-[11px] font-bold text-rose-700">
                 <span className="h-2 w-2 rounded-full bg-rose-600 animate-rec-dot"></span>
-                <span>REC</span>
+                <span>PROCTORING ACTIVE</span>
               </div>
             </div>
 
-            <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-slate-300 dark:border-slate-800 bg-slate-950 shadow-inner">
+            <div className="relative aspect-video w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-950 shadow-inner">
               <video
                 ref={videoRef}
                 autoPlay
@@ -493,16 +679,20 @@ export function LiveInterview({
               />
             </div>
 
-            <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div className="space-y-2 text-xs text-slate-600 bg-slate-50 p-4 rounded-xl border border-slate-200">
               <div className="flex justify-between">
-                <span>Tab Focus Monitor:</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-semibold">Active & Compliance Verified</span>
+                <span>Tab Focus Integrity:</span>
+                <span className="text-emerald-700 font-semibold">Active Monitoring</span>
               </div>
               <div className="flex justify-between">
-                <span>Proctoring Flags:</span>
-                <span className={fraudFlags.length > 0 ? 'text-rose-600 font-bold' : 'text-slate-700 dark:text-slate-300'}>
-                  {fraudFlags.length} recorded
+                <span>Proctoring Flag Count:</span>
+                <span className={fraudFlags.length > 0 ? 'text-rose-700 font-bold' : 'text-slate-700'}>
+                  {fraudFlags.length} flags logged
                 </span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-slate-200 text-[11px] text-slate-500">
+                <span>Privacy Status:</span>
+                <span className="font-medium text-slate-700">In-Browser Analysis (Zero Storage)</span>
               </div>
             </div>
           </div>
