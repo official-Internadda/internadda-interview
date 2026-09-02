@@ -1,5 +1,13 @@
 export type Difficulty = 'easy' | 'medium' | 'hard';
 export type AttemptStatus = 'passed' | 'failed' | 'disqualified' | 'in_progress';
+export type SessionPhase = 'greeting' | 'smalltalk' | 'briefing' | 'questions' | 'image_round' | 'close';
+
+export interface TranscriptEntry {
+  role: 'ai' | 'candidate';
+  text: string;
+  timestamp: string;
+  phase?: SessionPhase;
+}
 
 export interface Admin {
   id: string;
@@ -17,6 +25,18 @@ export interface Interview {
   status: 'active' | 'archived';
   created_at: string;
 }
+
+// Sanitized type for candidate-facing payloads (strips out difficulty)
+export interface CandidateInterview {
+  id: string;
+  title: string;
+  category: string;
+  duration_minutes: number;
+  num_questions: number;
+  status: 'active' | 'archived';
+  created_at: string;
+}
+
 
 export interface FraudFlag {
   type: 'tab_switch' | 'no_face' | 'turned_away' | 'multiple_faces';
