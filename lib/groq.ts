@@ -1,94 +1,190 @@
 import Groq from 'groq-sdk';
+import { TranscriptEntry, SessionPhase, Difficulty } from './types';
 
 const apiKey = process.env.GROQ_API_KEY || '';
 
 export const groq = apiKey ? new Groq({ apiKey }) : null;
 
-// Preferred Groq models for ultra low latency
-export const GROQ_MODEL_FAST = 'llama-3.1-8b-instant';
 export const GROQ_MODEL_VERSATILE = 'llama-3.3-70b-versatile';
 
-export interface GeneratedQuestion {
-  question_text: string;
+export interface ConversationalTurnOutput {
+  nextMessage: string;
+  phase: SessionPhase;
+  moveOn: boolean;
+  rejectedAnswer?: boolean;
+  showImage?: boolean;
+  imageUrl?: string;
   context_hint?: string;
 }
 
-export interface EvaluatedAnswer {
-  score: number; // 0 to 10
-  max_score: number;
-  feedback: string;
-  strengths: string[];
-  areas_for_improvement: string[];
+// Curated high quality work-appropriate stock images for mid-interview observational curveball
+export const fontStockImages: string[] = [
+  'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80', // Team collaboration whiteboard
+  'https://images.unsplash.com/photo-1531403009284-440f080d1e12?auto=format&fit=crop&w=800&q=80', // Design review / user testing
+  'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80', // Data dashboard analysis
+  'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80'  // Mission control room
+];
+
+export function getRandomStockImage(): string {
+  const idx = Math.floor(Math.random() * fontStockImages.length);
+  return fontStockImages[idx];
 }
 
 /**
- * Generate Next Interview Question with Adaptive Dialogue Probing & Hard Mode Rigor
+ * Defensive normalized string similarity (Jaccard token similarity)
  */
-export async function generateQuestion(params: {
+function calculateSimilarity(str1: string, str2: string): number {
+  const tokens1 = new Set(str1.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean));
+  const tokens2 = new Set(str2.toLowerCase().replace(/[^\w\s]/g, '').split(/\s+/).filter(Boolean));
+
+  if (tokens1.size === 0 || tokens2.size === 0) return 0;
+
+  let intersection = 0;
+  tokens1.forEach((t) => {
+    if (tokens2.has(t)) intersection++;
+  });
+
+  const union = tokens1.size + tokens2.size - intersection;
+  return union === 0 ? 0 : intersection / union;
+}
+
+/**
+ * Generate Next Conversational Turn with Transcript Context & Deduplication
+ */
+export async function generateConversationalTurn(params: {
   category: string;
-  difficulty: 'easy' | 'medium' | 'hard';
-  questionIndex: number;
+  difficulty: Difficulty;
+  currentPhase: SessionPhase;
+  transcript: TranscriptEntry[];
+  questionTurnCount: number;
   totalQuestions: number;
-  previousQuestionsAndAnswers?: { question: string; answer: string }[];
-}): Promise<GeneratedQuestion> {
-  const { category, difficulty, questionIndex, totalQuestions, previousQuestionsAndAnswers = [] } = params;
+  imageUrl?: string;
+}): Promise<ConversationalTurnOutput> {
+  const { category, difficulty, currentPhase, transcript, questionTurnCount, totalQuestions, imageUrl } = params;
 
-  if (!groq) {
-    // Fallback static questions if GROQ_API_KEY is not set
-    const fallbackQuestions: Record<string, string[]> = {
-      default: [
-        `Welcome! Let's start with your background in ${category}. Could you walk me through a key project or experience that demonstrates your core competencies?`,
-        `How do you handle technical roadblocks or competing stakeholder priorities when working under tight deadlines in ${category}?`,
-        `Can you describe a specific situation where you identified an architectural or process flaw in ${category} and resolved it?`,
-        `Given a high-stakes scenario with tight constraints, what trade-offs do you prioritize and how do you measure success?`,
-        `Finally, what emerging trends or industry standards in ${category} do you believe will shape future development over the next 2-3 years?`
-      ]
-    };
+  const lastCandidateEntry = [...transcript].reverse().find((t) => t.role === 'candidate');
+  const candidateText = lastCandidateEntry ? lastCandidateEntry.text.trim() : '';
+  const wordCount = candidateText ? candidateText.split(/\s+/).filter(Boolean).length : 0;
 
-    const qList = fallbackQuestions.default;
-    const qText = qList[(questionIndex - 1) % qList.length];
+  // Rule: Check for low-content short answers during question or image phases
+  if (
+    (currentPhase === 'questions' || currentPhase === 'image_round') &&
+    transcript.length > 0 &&
+    lastCandidateEntry &&
+    wordCount < 12
+  ) {
     return {
-      question_text: qText,
-      context_hint: `Question ${questionIndex} of ${totalQuestions} (${difficulty.toUpperCase()} difficulty standard)`
+      nextMessage: "Could you expand on that a bit more? Walk me through your specific thinking and approach.",
+      phase: currentPhase,
+      moveOn: false,
+      rejectedAnswer: true,
+      context_hint: "Response was too brief. Require detailed elaboration."
     };
   }
 
+  if (!groq) {
+    // Offline / fallback phase-based conversational engine
+    if (currentPhase === 'greeting') {
+      return {
+        nextMessage: "Hey! Thanks for joining today — how are you feeling? Ready to get started?",
+        phase: 'smalltalk',
+        moveOn: false
+      };
+    }
+    if (currentPhase === 'smalltalk') {
+      return {
+        nextMessage: "Glad to hear! Before we jump into technical topics, a quick reminder: our session uses live camera and mic monitoring with zero media storage. Shall we begin?",
+        phase: 'briefing',
+        moveOn: true
+      };
+    }
+    if (currentPhase === 'briefing') {
+      return {
+        nextMessage: `Awesome. Let's dive right into ${category}. To start, could you walk me through a major challenge or architecture decision you led recently?`,
+        phase: 'questions',
+        moveOn: true,
+        context_hint: 'Looking for candidate project background & STAR structure.'
+      };
+    }
+    if (currentPhase === 'questions' && questionTurnCount >= 2 && !imageUrl) {
+      const selectedImg = getRandomStockImage();
+      return {
+        nextMessage: "Let's try something a little different! I've placed an image on your screen. Take a look and describe what you see, what's happening, and what you'd infer from it.",
+        phase: 'image_round',
+        moveOn: true,
+        showImage: true,
+        imageUrl: selectedImg,
+        context_hint: 'Observational analysis and communication round.'
+      };
+    }
+    if (currentPhase === 'image_round') {
+      return {
+        nextMessage: "Great observation! Now returning to our technical dialogue: how do you approach risk mitigation and monitoring when deploying critical updates?",
+        phase: 'questions',
+        moveOn: true,
+        showImage: false
+      };
+    }
+    if (questionTurnCount >= totalQuestions) {
+      return {
+        nextMessage: "That wraps up our key topics for today! Thank you so much for your time and thoughtful responses. We're finalizing your evaluation report now.",
+        phase: 'close',
+        moveOn: true
+      };
+    }
+
+    return {
+      nextMessage: `Got it, that's a solid approach. Building on what you said, how do you handle unexpected trade-offs or constraints in ${category}?`,
+      phase: 'questions',
+      moveOn: true
+    };
+  }
+
+  // Format transcript for LLM context
+  const formattedTranscript = transcript
+    .map((t) => `${t.role === 'ai' ? 'AI Interviewer' : 'Candidate'}: "${t.text}"`)
+    .join('\n');
+
   const isHardMode = difficulty === 'hard';
 
-  const systemPrompt = `You are AI Interviewer, Europe's premier privacy-first autonomous talent evaluation engine.
+  const systemPrompt = `You are AI Interviewer, Europe's sharp, warm, and highly objective talent evaluation agent.
 Domain Category: ${category}
-Difficulty Tier: ${difficulty.toUpperCase()}
-Question Index: ${questionIndex} of ${totalQuestions}.
+Session Phase: ${currentPhase}
+Questions Answered So Far: ${questionTurnCount} / ${totalQuestions}
 
-Difficulty Guidelines & Probing Intensity:
-- EASY: Foundational, open-ended question testing practical domain literacy. Constructive and encouraging tone.
-- MEDIUM: In-depth scenario or problem-solving question requiring structured explanation (STAR method: Situation, Task, Action, Result).
-- HARD (EXECUTIVE RIGOR): Deeply analytical probing. Challenge assumptions, demand concrete metrics, ask for specific technical/architectural trade-offs, and call out vague generalizations. If candidate's previous response was brief or vague, explicitly ask them to quantify their impact or explain their exact technical implementation choices.
+Tone & Persona:
+- Warm, natural, sharp human interviewer speaking live in a video call.
+- Use natural conversational bridges ("Got it, that makes sense", "Interesting point about X", "Quick follow-up on that...").
+- NEVER read a robotic question list. React directly to what the candidate just said.
 
-${
-  previousQuestionsAndAnswers.length > 0
-    ? `Candidate Dialogue History:\n` +
-      previousQuestionsAndAnswers
-        .map((item, idx) => `Turn Q${idx + 1}: ${item.question}\nCandidate A${idx + 1}: ${item.answer}`)
-        .join('\n\n')
-    : 'This is the opening question of the interview session.'
-}
+Phase Rules:
+1. GREETING: Warm human welcome ("Hey! Thanks for joining today — how are you feeling? Ready to get started?").
+2. SMALLTALK: Acknowledge candidate's warm-up reply, give a brief privacy/proctoring reminder, and transition to briefing.
+3. BRIEFING: Transition smoothly into the first domain question for ${category}.
+4. QUESTIONS:
+   - Ask deep follow-up questions if candidate's response needs clarification.
+   - ${isHardMode ? 'HARD MODE: Challenge assumptions, demand concrete metrics and architectural trade-offs.' : 'Focus on STAR structure and practical experience.'}
+   - If candidate answered sufficiently, set moveOn = true and ask the next core question in ${category}.
+5. IMAGE_ROUND: If questionTurnCount reaches 2 or 3 and image_round hasn't happened yet, transition casually ("Let's do something a little different...") and present a visual curveball.
+6. CLOSE: Wrap up warmly when questions are complete.
 
-Instructions:
-1. Output EXACTLY ONE clear spoken question for Question #${questionIndex}.
-2. If previous answers exist, organically build on what the candidate mentioned — ask a natural context-aware follow-up.
-3. ${isHardMode ? 'In HARD mode, dig deep into specific metrics, trade-offs, and edge cases. Do not let vague answers pass.' : 'Keep tone professional, clear, and focused on core competencies.'}
-4. Output ONLY valid JSON matching this schema:
+DEDUPLICATION MANDATE:
+Do NOT generate a line near-identical to any previous AI statement in the transcript.
+
+Return ONLY valid JSON matching this schema:
 {
-  "question_text": "Your concise spoken question string here",
-  "context_hint": "A 1-line guidance on what key metrics or structure the evaluator expects in their response"
+  "nextMessage": "<Your spoken response>",
+  "phase": "<greeting | smalltalk | briefing | questions | image_round | close>",
+  "moveOn": <true if moving to new topic/phase, false if asking immediate follow-up>,
+  "showImage": <true if triggering image round>,
+  "context_hint": "<1-line hint for evaluator guidance>"
 }`;
 
   try {
     const response = await groq.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Generate question #${questionIndex} for ${category} (${difficulty} difficulty).` }
+        { role: 'user', content: `Current Transcript:\n${formattedTranscript || '(Beginning of interview session)'}` }
       ],
       model: GROQ_MODEL_VERSATILE,
       response_format: { type: 'json_object' },
@@ -98,32 +194,61 @@ Instructions:
 
     const content = response.choices[0]?.message?.content || '{}';
     const parsed = JSON.parse(content);
+
+    let nextMsg = parsed.nextMessage || `Let's discuss your practical experience in ${category}. Could you walk me through a major project you led?`;
+    let nextPhase: SessionPhase = parsed.phase || currentPhase;
+    let moveOn: boolean = Boolean(parsed.moveOn);
+    let showImg: boolean = Boolean(parsed.showImage);
+
+    // Defensive Deduplication Check
+    const previousAiLines = transcript.filter((t) => t.role === 'ai').map((t) => t.text);
+    for (const prevLine of previousAiLines) {
+      const similarity = calculateSimilarity(nextMsg, prevLine);
+      if (similarity > 0.7) {
+        console.warn(`[AI Deduplication] High similarity detected (${(similarity * 100).toFixed(1)}%). Forcing fresh topic generation.`);
+        moveOn = true;
+        nextMsg = `Building on that perspective, how do you approach performance monitoring and scaling under heavy load in ${category}?`;
+        break;
+      }
+    }
+
+    let imgUrl: string | undefined = undefined;
+    if (showImg || nextPhase === 'image_round') {
+      imgUrl = imageUrl || getRandomStockImage();
+      showImg = true;
+      nextPhase = 'image_round';
+    }
+
     return {
-      question_text: parsed.question_text || `Could you elaborate on your practical experience and technical approach in ${category}?`,
-      context_hint: parsed.context_hint || 'Focus on specific implementation details and quantifiable outcomes.'
+      nextMessage: nextMsg,
+      phase: nextPhase,
+      moveOn,
+      showImage: showImg,
+      imageUrl: imgUrl,
+      context_hint: parsed.context_hint || 'Evaluate domain depth and structure.'
     };
   } catch (error) {
-    console.error('Groq generateQuestion error:', error);
+    console.error('Groq generateConversationalTurn error:', error);
     return {
-      question_text: `Could you share a concrete scenario in ${category} where you overcame a complex technical or operational obstacle?`,
-      context_hint: 'Detail your specific role, actions taken, and measurable results.'
+      nextMessage: `Could you share a concrete scenario in ${category} where you had to make a high-stakes technical decision?`,
+      phase: currentPhase === 'greeting' || currentPhase === 'smalltalk' ? 'questions' : currentPhase,
+      moveOn: true
     };
   }
 }
 
 /**
- * Evaluate Candidate Answer against Domain Rubric
+ * Evaluate Candidate Answer against Domain Rubric (Backend only)
  */
 export async function evaluateAnswer(params: {
   category: string;
-  difficulty: 'easy' | 'medium' | 'hard';
+  difficulty: Difficulty;
   question: string;
   answer: string;
-}): Promise<EvaluatedAnswer> {
+}) {
   const { category, difficulty, question, answer } = params;
 
   if (!groq) {
-    // Dynamic rule-based score calculation when offline
     const wordCount = answer ? answer.trim().split(/\s+/).length : 0;
     let baseScore = Math.min(10, Math.max(3, Math.floor(wordCount / 10)));
     if (difficulty === 'medium') baseScore = Math.max(1, baseScore - 1);
@@ -132,46 +257,37 @@ export async function evaluateAnswer(params: {
     return {
       score: baseScore,
       max_score: 10,
-      feedback:
-        wordCount > 25
-          ? 'Good response addressing key aspects of the prompt.'
-          : 'Response was brief. Use the STAR method (Situation, Task, Action, Result) for a comprehensive breakdown.',
-      strengths: ['Clear articulate delivery', 'Addressed core topic'],
-      areas_for_improvement: wordCount < 30 ? ['Include specific metrics and concrete results'] : ['Deeper technical elaboration']
+      feedback: wordCount > 25 ? 'Structured response addressing core prompt.' : 'Response was brief. Focus on STAR method details.',
+      strengths: ['Addressed core topic'],
+      areas_for_improvement: ['Include quantifiable metrics']
     };
   }
 
-  const systemPrompt = `You are AI Interviewer, Europe's objective corporate talent evaluation engine scoring candidate responses.
+  const systemPrompt = `You are AI Interviewer, Europe's objective corporate talent evaluation engine.
 Domain Category: ${category}
-Difficulty Level: ${difficulty.toUpperCase()}
+Difficulty Standard: ${difficulty.toUpperCase()}
 
-Difficulty Rubric & Severity:
-- EASY: Generous grading. Clear foundational understanding earns 7-10/10. 50% qualification bar is accessible.
-- MEDIUM: Standard executive rubric. Require clear STAR methodology logic, domain terminology, and structured answers. Vague responses earn 4-6/10.
-- HARD (RIGOROUS): Near-expert rubric. Minimal partial credit. Penalize buzzword usage without substance, vague statements without metrics, or missing technical depth. Grant 2-5/10 for average or high-level answers. The 50% qualification threshold requires solid, verifiable depth.
-
-Question Asked: "${question}"
+Question: "${question}"
 Candidate Response: "${answer}"
 
-Instructions:
-Evaluate objectively according to the specified difficulty tier. Output ONLY valid JSON:
+Output ONLY valid JSON:
 {
   "score": <number between 0 and 10>,
-  "feedback": "<2-3 sentence constructive executive evaluation feedback>",
-  "strengths": ["<key strength 1>", "<key strength 2>"],
-  "areas_for_improvement": ["<improvement area 1>", "<improvement area 2>"]
+  "feedback": "<2-3 sentence executive feedback>",
+  "strengths": ["<strength 1>", "<strength 2>"],
+  "areas_for_improvement": ["<area 1>", "<area 2>"]
 }`;
 
   try {
     const response = await groq.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: 'Evaluate this candidate response now.' }
+        { role: 'user', content: 'Evaluate response.' }
       ],
       model: GROQ_MODEL_VERSATILE,
       response_format: { type: 'json_object' },
       temperature: 0.2,
-      max_tokens: 400
+      max_tokens: 300
     });
 
     const content = response.choices[0]?.message?.content || '{}';
@@ -179,18 +295,18 @@ Evaluate objectively according to the specified difficulty tier. Output ONLY val
     return {
       score: typeof parsed.score === 'number' ? parsed.score : 6,
       max_score: 10,
-      feedback: parsed.feedback || 'Response evaluated against standardized European talent rubrics.',
+      feedback: parsed.feedback || 'Evaluated against category standards.',
       strengths: Array.isArray(parsed.strengths) ? parsed.strengths : ['Clear domain communication'],
-      areas_for_improvement: Array.isArray(parsed.areas_for_improvement) ? parsed.areas_for_improvement : ['Include measurable outcomes and technical depth']
+      areas_for_improvement: Array.isArray(parsed.areas_for_improvement) ? parsed.areas_for_improvement : ['Include measurable outcomes']
     };
   } catch (error) {
     console.error('Groq evaluateAnswer error:', error);
     return {
       score: 6,
       max_score: 10,
-      feedback: 'Response acknowledged and scored against category standard.',
-      strengths: ['Direct response to question prompt'],
-      areas_for_improvement: ['Elaborate further on implementation specifics']
+      feedback: 'Response evaluated against category standard.',
+      strengths: ['Direct response'],
+      areas_for_improvement: ['Elaborate further']
     };
   }
 }
